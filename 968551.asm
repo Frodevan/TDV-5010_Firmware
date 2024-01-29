@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.6                             //
+;// Tandberg TDV-5000 series 968551 v1.7                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2026   //
+;//                                 Dissasembled by Frodevan, 2023   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -1470,11 +1470,13 @@ invoke_reset_wait_a_bit:
     DJNZ        temporary_counter,invoke_reset_wait_a_bit
 invoke_reset_wait_for_clk_low_2:
     JB          SERIAL_CLOCK_RX,invoke_reset_wait_for_clk_low_2
-    JB          SERIAL_DATA_RX,invoke_reset_skip_selftest
-    LJMP        init                        ; Reboot firmware
 
-invoke_reset_skip_selftest:
+    LCALL       read_clock_and_data_lines
+    CJNE        A,#08h,invoke_reset_do_selftest
     AJMP        main_loop_wait_for_rx       ; Skip if zero-bit not received
+
+invoke_reset_do_selftest:
+    LJMP        Init                        ; Reboot firmware
 
 
 
@@ -1531,21 +1533,17 @@ tx_byte_at:
     MOV         prioritized_tx_byte,@R1     ; If so, get next byte from buffer
 
 tx_at_sync_up:
-    CLR         SERIAL_DATA_TX              ; Set data high...
-    MOV         R4,#4Ch
-tx_at_wait_for_clock:
-    JB          SERIAL_CLOCK_RX,tx_at_sync_up   ; ...and unless first time,
-    JB          in_init_flag,tx_at_check_lines  ;    wait for clock to
-    DJNZ        R4,tx_at_wait_for_clock     ;        stay high for some time.
-
-tx_at_check_lines:
-    LCALL       read_clock_and_data_lines   ; Verify Clock/Data lines to...
-    JNZ         tx_done                     ; ...remain high for a short time
-    MOV         R4,#04h
+    LCALL       read_clock_and_data_lines   ; Wait for Clock/Data lines to...
+tx_at_wait_for_clock_loop:                  ; ...remain stable for some time
+    MOV         B,A
+    MOV         R4,#10h
 tx_at_wait_for_clock_delay:
     DJNZ        R4,tx_at_wait_for_clock_delay
     LCALL       read_clock_and_data_lines
-    JNZ         tx_done
+    CJNE        A,B,tx_at_wait_for_clock_loop
+    JZ          do_tx_at                    ; Start transmit if both lines high
+    CJNE        A,#08h,tx_at_wait_for_clock_loop    ; Retry unles only data low
+    SJMP        tx_done
 
 do_tx_at:
     CLR         ET0                         ; Time-critical, so no scanning now
@@ -2936,7 +2934,7 @@ scancode_set_3_encode:
     DB          34h, 33h, 2Ch, 1Fh, 2Eh, 3Ah, 2Ch, 47h
     DB          66h, 29h, 4Fh, 2Bh, 7Dh, 3Ch, 62h, 75h
     DB          2Ah, 1Dh, 23h, 0Fh, 26h, 31h, 49h, 52h
-    DB          4Ch, 84h, 5Dh, 65h, 7Eh, 64h, 6Dh, 77h
+    DB          4Ch, 84h, 53h, 65h, 7Eh, 64h, 6Dh, 77h
     DB          3Bh, 42h, 35h, 27h, 36h, 41h, 46h, 3Eh
     DB          45h, 3Ah, 4Eh, 6Eh, 32h, 67h, 4Bh, 2Ah
     DB          44h, 3Ch, 43h, 2Fh, 3Dh, 4Bh, 5Bh, 54h
@@ -3009,13 +3007,15 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          'TDV 5010 PC-KBD, 968551-01.6 '
+    DB          'TDV 5010 PC-KBD, 968551-01.7 '
     DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S '
-    DB          'WRITTEN BY L.H.HELGESEN '
 
-    DB          00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h
 
 checksum:
-    DB          0BDh
+    DB          0A9h
 
     END
