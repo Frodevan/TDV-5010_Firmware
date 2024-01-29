@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.8                             //
+;// Tandberg TDV-5000 series 968551 v1.9                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2026   //
+;//                                 Dissasembled by Frodevan, 2023   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -673,7 +673,11 @@ check_for_typematic_trigger:
     DJNZ        typematic_count,read_keylocks
     JNB         typematic_armed_flag,read_keylocks
     JNB         typematic_enabled,typematic_disarm
+    JNB         SERIAL_CLOCK_RX,typematic_triggered
+    MOV         typematic_count,#01h
+    LJMP        typematic_end
 
+typematic_triggered:
     MOV         DPTR,#keytype_flags_table   ; Get typematic key flags
     MOV         A,latest_held_key_index
     MOVC        A,@A+DPTR
@@ -710,7 +714,6 @@ typematic_set_12_extended_no_alt:
 typematic_notis_key:
     MOV         A,#80h
 typematic_send_scode_prefix:
-    JB          SERIAL_CLOCK_RX,typematic_normal_key
     LCALL       queue_scancode              ; Send any prefix
 typematic_normal_key:
     MOV         DPL,scancode_table_ptr_lo
@@ -718,20 +721,18 @@ typematic_normal_key:
     MOV         A,latest_held_key_index     ; Get normal scancode
     MOVC        A,@A+DPTR
 typematic_send_scancode:
-    JB          SERIAL_CLOCK_RX,typematic_end
     LCALL       queue_scancode              ; Send main scancode
+    MOV         typematic_count,typematic_repeat_rate
 
 typematic_end:
-    JNB         beep_enable_flag,typematic_skip_beep
+    CLR         scancode_queue_overflowed
+    JNB         beep_enable_flag,typematic_only_beep_on_normal_key
     SETB        sound_beeper                ; Sound beeper if enabled...
-typematic_skip_beep:
+typematic_only_beep_on_normal_key:
     MOV         A,keytype_flags
     ANL         A,#38h
-    JZ          typematic_keep_beep_on_normal_key
+    JZ          read_keylocks
     CLR         sound_beeper                ; ...but ONLY on normal keys!
-typematic_keep_beep_on_normal_key:
-    MOV         typematic_count,typematic_repeat_rate
-    CLR         scancode_queue_overflowed
 
 ;////////////////////////////////////////
 
@@ -1543,13 +1544,17 @@ tx_at_check_time:
     MOV         R4,#10h                     ; Wait a bit more after cooldown
 tx_at_init_wait:
     DJNZ        R4,tx_at_init_wait
-    SJMP        tx_at_sync_up               ; Wait for serial line ready
+    SJMP        tx_at_wait_for_clock        ; Wait for serial line ready
+
+tx_at_sync_up:
+    CLR         SERIAL_DATA_TX              ; Release data-line, just in case
+    SJMP        tx_at_wait_for_clock        ; Wait for serial line ready
 
 tx_at_single_byte:
     MOV         A,prioritized_tx_byte       ; No cooldown for response 83h
     CJNE        A,#83h,init_tx_at           ; Wait for serial line ready
 
-tx_at_sync_up:
+tx_at_wait_for_clock:
     LCALL       read_clock_and_data_lines   ; Wait for Clock/Data lines to...
 tx_at_wait_for_clock_loop:                  ; ...remain stable for some time
     MOV         B,A
@@ -1627,9 +1632,11 @@ tx_at_parity_bit_lo:
     MOV         R4,#0Ah                     ; Wait a little before stop bit
 tx_at_last_bit_hi:
     DJNZ        R4,tx_at_last_bit_hi
+    JNB         SERIAL_CLOCK_RX,tx_at_success
+    AJMP        tx_at_sync_up
 
-    JB          SERIAL_CLOCK_RX,tx_at_sync_up   ; Send stop bit
-    CLR         SERIAL_DATA_TX
+tx_at_success:
+    CLR         SERIAL_DATA_TX              ; Send stop bit
     MOV         R4,#0Ch
 tx_at_stop_bit_hi:
     DJNZ        R4,tx_at_stop_bit_hi
@@ -3049,10 +3056,9 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          'TDV 5010 PC-KBD, 968551-01.8 '
+    DB          'TDV 5010 PC-KBD, 968551-01.9'
     DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S'
 
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
@@ -3061,6 +3067,6 @@ copyright:
     DB          00h, 00h
 
 checksum:
-    DB          04Ah
+    DB          0BEh
 
     END
