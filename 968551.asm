@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v2.0                             //
+;// Tandberg TDV-5000 series 968551 v2.1                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2026   //
+;//                                 Dissasembled by Frodevan, 2023   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -39,6 +39,7 @@ SERIAL_CLOCK_TX                  BIT P3.0
 SERIAL_DATA_TX                   BIT P3.1
 SERIAL_CLOCK_RX                  BIT P3.2
 SERIAL_DATA_RX                   BIT P3.3
+DISABLE_SCANNING_FLAG            BIT P3.5
 R_SHIFT_UP_PENDING               BIT P3.6
 L_SHIFT_UP_PENDING               BIT P3.7
 
@@ -184,9 +185,11 @@ CSEG AT 0000h
 ;//
 
 timer0_int:
-    SJMP        timer_routine_entry
+    MOV         TL0,#60h                    ; Reset timer
+    MOV         TH0,#0FEh
+    JNB         DISABLE_SCANNING_FLAG,timer_routine
+    RETI
 
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     DB          00h, 00h, 00h, 00h, 00h, 00h
 
 ;////////////////////////////////////////
@@ -231,12 +234,6 @@ flip_speaker:
 ;//   R4   Bitmap of row's previous immediate key state
 ;//   R4   Temporary key-held bitmap (in check_for_typematic_arming)
 ;//
-
-timer_routine_entry:
-    MOV         TL0,#60h                    ; Reset timer
-    MOV         TH0,#0FEh
-
-;////////////////////////////////////////
 
 timer_routine:
     PUSH        ACC                         ; Save CPU state, swap registers
@@ -1103,7 +1100,7 @@ op_identify_kbd:
     CLR         rx_and_tx_flag
     LCALL       push_tx
 
-    SETB        EA                          ; Enable scanning if disabled
+    CLR         DISABLE_SCANNING_FLAG       ; Enable scanning if disabled
     AJMP        main_loop                   ; Command done
 
 
@@ -1172,7 +1169,6 @@ valid_typematic_byte:
     SETB        tx_single_byte_flag
     LCALL       push_tx
 
-    SETB        EA                          ; Enable scanning if disabled
     AJMP        main_loop                   ; Command done
 
 delay_before_repeat_timings:
@@ -1210,9 +1206,9 @@ op_en_scanning:
     LCALL       flush_tx_buffer
 
     CLR         typematic_enabled           ; Reset typematic repeat
-    SETB        EA                          ; Enable scanning if disabled
 
     SETB        ET0                         ; Resume scanning
+    CLR         DISABLE_SCANNING_FLAG       ; Enable scanning if disabled
     AJMP        main_loop                   ; Command done
 
 
@@ -1245,10 +1241,8 @@ op_restore_defaults:
     CLR         typematic_enabled
 
     POP         ACC                         ; Recover command byte
-    SETB        EA                          ; Default scanning enabled...
-    SETB        ET0                         ; (Resume scanning)
     JNB         ACC.1,restore_defaults_done ; ...but disable if odd cmd byte
-    CLR         EA
+    SETB        DISABLE_SCANNING_FLAG
 restore_defaults_done:
     AJMP        main_loop                   ; Command done
 
@@ -1284,7 +1278,6 @@ op_make_only_all:
 
 op_typematic_make_release_all:
     MOV         A,#0FFh
-    SJMP        set_key_mode_all
 
 ;////////////////////////////////////////
 
@@ -1312,8 +1305,6 @@ fill_key_mode_table_loop:
     LCALL       flush_tx_buffer             ; Flush TX if new setting active
 fill_key_mode_table_done:
 
-    SETB        EA                          ; Enable scanning if disabled
-    SETB        ET0                         ; Resume scanning
     AJMP        main_loop                   ; Command done
 
 
@@ -3094,12 +3085,15 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          '968551-02.0 '
+    DB          '968551-02.1 '
     DB          'COPYRIGHT 1988 TANDBERG DATA A/S'
 
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h
 
 checksum:
-    DB          08Dh
+    DB          0D7h
 
     END
