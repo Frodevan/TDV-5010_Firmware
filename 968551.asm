@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.4                             //
+;// Tandberg TDV-5000 series 968551 v1.6                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2023   //
+;//                                 Dissasembled by Frodevan, 2026   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -33,6 +33,7 @@ SCROLL_LOCK_INDICATOR            BIT P2.3
 KEYBOARD_MODE_JUMPER_ST1         BIT P2.4
 KEYBOARD_MODE_JUMPER_ST2         BIT P2.5
 DEFAULT_BEEP_JUMPER_ST3          BIT P2.6
+NAVIGATION_NUMCASE_IGNORE_FLAG   BIT P2.7
 
 SERIAL_CLOCK_TX                  BIT P3.0
 SERIAL_DATA_TX                   BIT P3.1
@@ -1336,6 +1337,7 @@ set_key_mode_rx_loop:
     JNB         tx_and_rx_done,set_key_mode_rx_loop
     CLR         tx_and_rx_done
 
+set_key_mode_next:
     MOV         A,rx_byte                   ; Get received data
     CJNE        A,#85h,check_valid_set_3_scancode
 check_valid_set_3_scancode:
@@ -1403,8 +1405,19 @@ set_mode_byte_entry_done:
 
 set_mode_operation_done:
     CLR         EA                          ; Disable scanning
+    MOV         prioritized_tx_byte,#0FAh   ; Send Ack
+    SETB        tx_single_byte_flag
+set_key_mode_tx_loop_2:
+    LCALL       push_tx
+set_key_mode_rx_loop_2:
+    LCALL       poll_rx
+    JB          tx_byte_pending,set_key_mode_tx_loop_2
+    JNB         tx_and_rx_done,set_key_mode_rx_loop_2
+    CLR         tx_and_rx_done
+
+    CJNE        A,#0F4h,set_key_mode_next   ; Expect data until Enable Scanning
     CLR         rx_and_tx_flag
-    AJMP        main_loop                   ; Command done
+    AJMP        op_en_scanning              ; Command done
 
 
 
@@ -1512,22 +1525,29 @@ tx_complete:
 ;////////////////////////////////////////
 
 tx_byte_at:
-    JB          tx_single_byte_flag,init_tx_at  ; Check if immediate-byte Tx
+    JB          tx_single_byte_flag,tx_at_sync_up   ; Check if immediate-byte
     MOV         A,R2                        ; Anything from buffer to transmit?
     JZ          tx_done
     MOV         prioritized_tx_byte,@R1     ; If so, get next byte from buffer
 
-init_tx_at:
-    JB          in_init_flag,do_tx_at       ; Don't sync up first time
 tx_at_sync_up:
-    CLR         SERIAL_DATA_TX              ; Otherwise set data high...
+    CLR         SERIAL_DATA_TX              ; Set data high...
     MOV         R4,#4Ch
 tx_at_wait_for_clock:
-    JB          SERIAL_CLOCK_RX,init_tx_at  ; ...and wait for clock to
-    DJNZ        R4,tx_at_wait_for_clock     ;    stay high for some time.
+    JB          SERIAL_CLOCK_RX,tx_at_sync_up   ; ...and unless first time,
+    JB          in_init_flag,tx_at_check_lines  ;    wait for clock to
+    DJNZ        R4,tx_at_wait_for_clock     ;        stay high for some time.
+
+tx_at_check_lines:
+    LCALL       read_clock_and_data_lines   ; Verify Clock/Data lines to...
+    JNZ         tx_done                     ; ...remain high for a short time
+    MOV         R4,#04h
+tx_at_wait_for_clock_delay:
+    DJNZ        R4,tx_at_wait_for_clock_delay
+    LCALL       read_clock_and_data_lines
+    JNZ         tx_done
 
 do_tx_at:
-    JB          SERIAL_DATA_RX,tx_done      ; Verify that we have the data-line
     CLR         ET0                         ; Time-critical, so no scanning now
     MOV         B,prioritized_tx_byte       ; Fetch byte to transmit
     MOV         A,prioritized_tx_byte
@@ -1694,14 +1714,12 @@ xt_dataline_reset:
 poll_rx:
     CLR         ET0                         ; Timing-critical action
     JB          xt_mode_flag,rx_byte_tx     ; Determine AT or XT mode
-    MOV         A,DATA_AND_CLOCK            ; Check Rx Clock and Data lines
-    ANL         A,#0Ch
+    LCALL       read_clock_and_data_lines   ; Check Rx Clock and Data lines
     CJNE        A,#08h,rx_end               ; Expect Clock high and Data low
     MOV         R4,#04h                     ; Wait tiny bit
 rx_byte_check_lines_wait:
     DJNZ        R4,rx_byte_check_lines_wait
-    MOV         A,DATA_AND_CLOCK            ; Verify consistency
-    ANL         A,#0Ch
+    LCALL       read_clock_and_data_lines   ; Verify consistency
     CJNE        A,#08h,rx_end
 
     MOV         temporary_counter,#09h      ; Set Rx + Parity bit-counter
@@ -1829,6 +1847,19 @@ toggle_clock_line_wait_2:
 
 ;//////////////////////////////////////////////////////////////////////
 ;//
+;// Subroutine: Read Clock and Data lines
+;//
+;//   Gets the Clock and Data lines in bit 2 and 3 (respectively) of A
+;//
+read_clock_and_data_lines:
+    MOV         A,DATA_AND_CLOCK
+    ANL         A,#0Ch
+    RET
+
+
+
+;//////////////////////////////////////////////////////////////////////
+;//
 ;// Encode and queue scancode for Tx
 ;//
 ;//    Converts a key-index into the appropriate scan-code, or sequence
@@ -1885,8 +1916,10 @@ notis_key_encode:
 encode_notis_keyup_set_1_2:
     MOV         A,#80h                      ; Queue notis-key prefix
     LCALL       queue_scancode
+    JB          is_scancode_set_1,encode_notis_base_scancode_set_1
     MOV         A,#0F0h                     ; Queue break-code prefix
     LCALL       queue_scancode
+encode_notis_base_scancode_set_1:
     LCALL       get_stored_scancode         ; Queue key scancode
     JNB         is_scancode_set_1,send_keyup_code_set_2_3
     ORL         A,#80h                      ; Set break-flag for scancode set 1
@@ -1896,9 +1929,15 @@ notis_skip_key_release_if_disabled:
     RET
 
 encode_notis_keydown:
-    JNB         is_scancode_set_3,send_notis_keydown
-    MOV         A,keydown_key_index         ; Retreive key for flags
+    JNB         is_scancode_set_3,notis_keydown_check_numcase
+    MOV         A,keydown_key_index         ; Retreive key for flags again
     LCALL       get_key_mode
+    LJMP        send_notis_keydown
+notis_keydown_check_numcase:
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,notis_add_numcase_postfix
+    LJMP        send_notis_keydown          ; If a navigation-key is held...
+notis_add_numcase_postfix:
+    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 send_notis_keydown:
     MOV         A,#80h                      ; Queue notis-key prefix
     LCALL       queue_scancode
@@ -1943,10 +1982,17 @@ pause_break_key_encode:
 ;//
 
 normal_key_encode:
-    JNB         proccessing_keys_up_flag,normal_scancode_encode
+    JNB         proccessing_keys_up_flag,normal_keydown_check_numcase
     JB          is_scancode_set_1,normal_keyup_encode
     MOV         A,#0F0h                     ; Queue break-code prefix for set 2
     LCALL       queue_scancode
+    LJMP        normal_scancode_encode
+
+normal_keydown_check_numcase:
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,normal_add_numcase_postfix
+    LJMP        normal_scancode_encode      ; If a navigation-key is held...
+normal_add_numcase_postfix:
+    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 normal_scancode_encode:
     LCALL       get_stored_scancode         ; Queue key scancode
     LJMP        send_normal_scancode
@@ -1967,10 +2013,18 @@ send_normal_scancode:
 extended_key_encode:
     MOV         A,#0E0h                     ; Queue Extended key prefix
     LCALL       queue_scancode
-    JNB         proccessing_keys_up_flag,send_extended_key_scancode
+    JNB         proccessing_keys_up_flag,extended_key_keydown_check_numcase
     JB          is_scancode_set_1,normal_keyup_encode
     MOV         A,#0F0h                     ; Queue break-code prefix for set 2
     LCALL       queue_scancode
+    LJMP        send_extended_key_scancode
+
+extended_key_keydown_check_numcase:
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,extended_add_numcase_postfix
+    LJMP        send_extended_key_scancode  ; If a navigation-key is held...
+extended_add_numcase_postfix:
+    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
+    LCALL       queue_scancode              ; Queue Extended key prefix again
 send_extended_key_scancode:
     LCALL       get_stored_scancode         ; Queue key scancode
     LCALL       queue_scancode
@@ -2102,19 +2156,24 @@ send_navigation_numlock:
     JB          l_shift_key_held,encode_navigation_numlock_shift
     JB          r_shift_key_held,encode_navigation_numlock_shift
     JB          proccessing_keys_up_flag,encode_nav_numlock_keyup
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,send_navigation_keydown
     MOV         DPTR,#nav_prefix_set_1
     JB          is_scancode_set_1,send_navigation_prefix
     MOV         DPTR,#nav_prefix_set_2
 send_navigation_prefix:
     LCALL       queue_string                ; Queue disable numlock sequence
+send_navigation_keydown:
+    MOV         A,#0E0h                     ; Queue Extended prefix
+    LCALL       queue_scancode
     LCALL       get_stored_scancode         ; Queue key scancode
     LCALL       queue_scancode
+    SETB        NAVIGATION_NUMCASE_IGNORE_FLAG
     RET
 
 nav_prefix_set_1:
-    DB          0E0h, 2Ah, 0E0h, 00h
+    DB          0E0h, 2Ah, 00h
 nav_prefix_set_2:
-    DB          0E0h, 12h, 0E0h, 00h
+    DB          0E0h, 12h, 00h
 
 encode_nav_numlock_keyup:
     MOV         A,#0E0h                     ; Queue Extended prefix
@@ -2128,6 +2187,10 @@ encode_nav_numlock_keyup_scancode:
     ORL         A,#80h                      ; Set break-flag for scancode set 1
 send_nav_numlock_keyup_scancode:
     LCALL       queue_scancode
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,encode_navigation_postfix
+    RET
+
+encode_navigation_postfix:
     MOV         DPTR,#nav_postfix_set_2
     JNB         is_scancode_set_1,send_navigation_postfix
     MOV         DPTR,#nav_postfix_set_1
@@ -2153,6 +2216,11 @@ numpad_div_key_entry:
     JB          l_shift_key_held,encode_numpad_div_shift
     JB          r_shift_key_held,encode_numpad_div_shift
     JB          proccessing_keys_up_flag,encode_numpad_div_keyup
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,send_numpad_div_numcase
+    LJMP        send_numpad_div_keydown     ; If a navigation-key is held...
+send_numpad_div_numcase:
+    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
+send_numpad_div_keydown:
     MOV         A,#0E0h                     ; Queue Extended prefix
     LCALL       queue_scancode
     LCALL       get_stored_scancode         ; Queue key scancode
@@ -2189,30 +2257,51 @@ prtscr_key_entry:
     JB          r_shift_key_held,encode_prtscr_other_modifier
 
     JB          proccessing_keys_up_flag,encode_prtscr_keyup
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,send_prtscr_keydown
     MOV         DPTR,#prtscr_prefix_set_2
-    JNB         is_scancode_set_1,send_prtscr_postfix
+    JNB         is_scancode_set_1,send_prtscr_prefix
     MOV         DPTR,#prtscr_prefix_set_1
-send_prtscr_postfix:
-    LCALL       queue_string                ; Queue disable numlock/scancode
+send_prtscr_prefix:
+    LCALL       queue_string                ; Queue disable numlock
+send_prtscr_keydown:
+    MOV         A,#0E0h                     ; Queue Extended prefix
+    LCALL       queue_scancode
+    LCALL       get_stored_scancode         ; Queue key scancode
+    LCALL       queue_scancode
+    SETB        NAVIGATION_NUMCASE_IGNORE_FLAG
     RET
 
 prtscr_prefix_set_1:
-    DB          0E0h, 2Ah, 0E0h, 37h, 00h
+    DB          0E0h, 2Ah, 00h
 prtscr_prefix_set_2:
-    DB          0E0h, 12h, 0E0h, 7Ch, 00h
+    DB          0E0h, 12h, 00h
 
 encode_prtscr_keyup:
     MOV         DPTR,#prtscr_keyup_set_2
     JNB         is_scancode_set_1,send_prtscr_keyup
     MOV         DPTR,#prtscr_keyup_set_1
 send_prtscr_keyup:
-    LCALL       queue_string                ; Queue scancode/re-enable numlock
+    LCALL       queue_string                ; Queue scancode
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,encode_prtscr_postfix
+    RET
+
+encode_prtscr_postfix:
+    MOV         DPTR,#prtscr_postfix_set_2
+    JNB         is_scancode_set_1,send_prtscr_postfix
+    MOV         DPTR,#prtscr_postfix_set_1
+send_prtscr_postfix:
+    LCALL       queue_string                ; Queue re-enable numlock
     RET
 
 prtscr_keyup_set_1:
-    DB          0E0h, 0B7h, 0E0h, 0AAh, 00h
+    DB          0E0h, 0B7h, 00h
 prtscr_keyup_set_2:
-    DB          0E0h, 0F0h, 7Ch, 0E0h, 0F0h, 12h, 00h
+    DB          0E0h, 0F0h, 7Ch, 00h
+
+prtscr_postfix_set_1:
+    DB          0E0h, 0AAh, 00h
+prtscr_postfix_set_2:
+    DB          0E0h, 0F0h, 12h, 00h
 
 encode_prtscr_alt_modifier:
     JB          is_scancode_set_1,send_prtscr_alt_set_1
@@ -2264,6 +2353,11 @@ pause_break_key_entry:
 
 encode_break_keydown:
     JB          ctrl_key_held,encode_break_ctrl_keydown
+    JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,encode_break_keydown_check_numcase
+    LJMP        send_break_keydown          ; If a navigation-key is held...
+encode_break_keydown_check_numcase:
+    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
+send_break_keydown:
     MOV         DPTR,#break_set_2
     JNB         is_scancode_set_1,send_break
     MOV         DPTR,#break_set_1
@@ -2308,6 +2402,26 @@ get_scancode:
     MOV         DPL,scancode_table_ptr_lo
     MOVC        A,@A+DPTR                   ; Get scancode from key index
     RET
+
+
+
+;//////////////////////////////////////////////////////////////////////
+;//
+;// Subroutine: Queue re-enable numlock state
+;//
+
+tx_numcase_modifier_up:
+    MOV         DPTR,#numcase_postfix_set_1
+    JB          is_scancode_set_1,send_numcase_set_1
+    MOV         DPTR,#numcase_postfix_set_2
+send_numcase_set_1:
+    LCALL       queue_string                ; Queue re-enable numlock
+    RET
+
+numcase_postfix_set_2:
+    DB          0E0h, 0F0h, 12h, 00h
+numcase_postfix_set_1:
+    DB          0E0h, 0AAh, 00h
 
 
 
@@ -2764,6 +2878,7 @@ wait_for_clock_cleared:
 
     MOV         TCON,#50h                   ; Enable scanning
     MOV         IE,#8Ah
+    CLR         NAVIGATION_NUMCASE_IGNORE_FLAG
     LJMP        main_loop                   ; Goto main-loop
 
 
@@ -2894,29 +3009,13 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          'TDV 5010 PC-KEYBOARD. '
-    DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S. '
-    DB          'WRITTEN BY LARS.H.HELGESEN 04.10.88 '
-    DB          'LAST REV. 26.07.89 '
-    DB          'PART-NO.: 968551-01.4'
+    DB          'TDV 5010 PC-KBD, 968551-01.6 '
+    DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S '
+    DB          'WRITTEN BY L.H.HELGESEN '
 
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h
 
 checksum:
-    DB          3Eh
+    DB          0BDh
 
     END
