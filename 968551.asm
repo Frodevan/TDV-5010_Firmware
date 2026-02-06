@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.9                             //
+;// Tandberg TDV-5000 series 968551 v2.0                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2023   //
+;//                                 Dissasembled by Frodevan, 2026   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -39,6 +39,8 @@ SERIAL_CLOCK_TX                  BIT P3.0
 SERIAL_DATA_TX                   BIT P3.1
 SERIAL_CLOCK_RX                  BIT P3.2
 SERIAL_DATA_RX                   BIT P3.3
+R_SHIFT_UP_PENDING               BIT P3.6
+L_SHIFT_UP_PENDING               BIT P3.7
 
 
 
@@ -346,7 +348,6 @@ handle_key_up:
 
     MOV         size_of_unsent_msg,#00h     ; Do scancode event
     LCALL       encode_and_tx_scancode
-    CLR         scancode_queue_overflowed
     DEC         R3                          ; Scancode sent, one less held key
 
     MOV         A,keytype_flags             ; Handle any changes to shift state
@@ -362,18 +363,18 @@ handle_key_up:
     JZ          alt_key_keyup
     DEC         A
     JZ          ctrl_key_keyup
-    DEC         A
-    JZ          normal_key_keyup
-    DEC         A
-    JZ          normal_key_keyup
     SJMP        normal_key_keyup
 
 l_shift_key_keyup:
     CLR         l_shift_key_held            ; Left shift let go
+    JNB         scancode_queue_overflowed,skip_holdoff_shifts
+    SETB        L_SHIFT_UP_PENDING          ; Set flag for overflow recovery
     SJMP        normal_key_keyup
 
 r_shift_key_keyup:
     CLR         r_shift_key_held            ; Right shift let go
+    JNB         scancode_queue_overflowed,skip_holdoff_shifts
+    SETB        R_SHIFT_UP_PENDING          ; Set flag for overflow recovery
     SJMP        normal_key_keyup
 
 alt_key_keyup:
@@ -384,6 +385,8 @@ ctrl_key_keyup:
     CLR         ctrl_key_held               ; Ctrl let go
 
 normal_key_keyup:
+    CLR         scancode_queue_overflowed
+skip_holdoff_shifts:
     CLR         typematic_ongoing           ; Any key-up stops tymeatic repeat
 
 ;////////////////////////////////////////
@@ -767,6 +770,9 @@ keylocks_end:
 ;//
 
 main_loop:
+    JB          L_SHIFT_UP_PENDING,main_enrty_pending_shift_up
+    JB          R_SHIFT_UP_PENDING,main_enrty_pending_shift_up
+main_loop_no_pending_shift_up:
     LCALL       push_tx                     ; Send any pending scancodes
 main_loop_wait_for_rx:
     LCALL       poll_rx                     ; Poll for incoming commands
@@ -785,6 +791,31 @@ check_command_in_range:
 
 command_not_in_range:
     LJMP        invalid_operation           ; Else handle invalid command
+
+;////////////////////////////////////////
+;//
+;// Recover shift release events after overflow
+;//
+
+main_enrty_pending_shift_up:
+    JB          is_scancode_set_1,encode_pending_shift_up_set_1
+    MOV         A,#0F0h                     ; Queue break-code for set 2
+    LCALL       queue_scancode
+    MOV         A,#12h                      ; Left Shift scancode for set 2
+    JB          L_SHIFT_UP_PENDING,send_pending_shift_up
+    MOV         A,#59h                      ; Right Shift scancode for set 2
+    SJMP        send_pending_shift_up
+encode_pending_shift_up_set_1:
+    MOV         A,#0AAh                     ; Left Shift break-code for set 1
+    JB          L_SHIFT_UP_PENDING,send_pending_shift_up
+    MOV         A,#0B6h                     ; Right Shift break-code for set 1
+send_pending_shift_up:
+    LCALL       queue_scancode              ; Queue scancode
+
+    JBC         scancode_queue_overflowed,main_loop_no_pending_shift_up
+    JBC         L_SHIFT_UP_PENDING,main_loop_no_pending_shift_up
+    CLR         R_SHIFT_UP_PENDING
+    SJMP        main_loop_no_pending_shift_up
 
 ;////////////////////////////////////////
 
@@ -848,7 +879,7 @@ op_get_keylocks:
     CLR         rx_and_tx_flag
     LCALL       push_tx
 
-    SJMP        main_loop                   ; Command done
+    AJMP        main_loop                   ; Command done
 
 keylocks_status_enum:
     DB          0F6h, 0F8h, 0F7h, 0F9h
@@ -1747,7 +1778,7 @@ poll_rx:
     JNB         SERIAL_CLOCK_RX,rx_end      ; No Rx for XT mode, just check...
     LCALL       wait_ca_10ms                ; ...if clock held low
     JNB         SERIAL_CLOCK_RX,rx_end
-    SJMP        xt_dataline_reset           ; Reset requested, reboot keyboard
+    LJMP        init                        ; Reset requested, reboot keyboard
 
 ;////////////////////////////////////////
 
@@ -1792,14 +1823,14 @@ rx_bit_hi:
     DJNZ        temporary_counter,rx_next_bit
 
 rx_wait_for_stop_bit:
-    ACALL       toggle_clock_line           ; Get and assert stop-bit
+    LCALL       toggle_clock_line           ; Get and assert stop-bit
     JB          SERIAL_DATA_RX,rx_sync_fault
 
     SETB        SERIAL_DATA_TX              ; Send low bit to ack stop-bit
     MOV         R4,#08h
 rx_stop_bit:
     DJNZ        R4,rx_stop_bit
-    ACALL       toggle_clock_line
+    LCALL       toggle_clock_line
     CLR         SERIAL_DATA_TX              ; Restore data-line to high
 
     MOV         A,rx_byte                   ; Separate parity-bit from Rx-bits
@@ -1901,11 +1932,12 @@ read_clock_and_data_lines:
 ;//    the scanning-routine, and this function is supposed to be called
 ;//    from there in response to a key-state change.
 ;//
+;//    A    Keytype flags
+;//
 
 encode_and_tx_scancode:
     JNB         is_scancode_set_3,encode_and_tx_scancode_set_1_2
-    MOV         A,keytype_flags             ; Scan-code set 3: Check key-class
-    CPL         A
+    CPL         A                           ; Scan-code set 3: Check key-class
     ANL         A,#07h                      ; 7: Extended notis key
     JZ          notis_key_encode            ;    ...handled separately
     CJNE        A,#01h,encode_key_active    ; 6: Inactive key, don't handle
@@ -1923,9 +1955,12 @@ encode_key_active:
     JNB         release_enabled,skip_key_release_if_disabled
     MOV         A,#0F0h                     ; Queue break-code prefix
     LCALL       queue_scancode
+    SJMP        send_base_scancode_code_set_3
+
 encode_keydown_set_3:
     MOV         A,keydown_key_index         ; Retreive key for scancode
     LCALL       get_key_mode
+send_base_scancode_code_set_3:
     LCALL       get_stored_scancode         ; Queue key scancode
     LCALL       queue_scancode
 skip_key_release_if_disabled:
@@ -2601,7 +2636,10 @@ queue_scancode:
     JB          scancode_queue_overflowed,queue_scancode_done
     CJNE        R2,#17,queue_check          ; Abort immediately if queue full
 queue_check:
-    JNC         queue_scancode_done
+    JC          add_to_queue
+    SETB        scancode_queue_overflowed   ; Mark overflow, but don't send
+    SJMP        queue_scancode_done
+add_to_queue:
     MOV         @R0,A                       ; Add scancode to queue
     INC         R0
     INC         size_of_unsent_msg
@@ -3056,17 +3094,12 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          'TDV 5010 PC-KBD, 968551-01.9'
-    DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S'
+    DB          '968551-02.0 '
+    DB          'COPYRIGHT 1988 TANDBERG DATA A/S'
 
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h
 
 checksum:
-    DB          0BEh
+    DB          08Dh
 
     END
