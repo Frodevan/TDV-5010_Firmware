@@ -1,6 +1,6 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.8 beta                        //
+;// Tandberg TDV-5000 series 968551 v1.8                             //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
@@ -285,49 +285,49 @@ new_keys_up:
     ANL         A,#7Fh
     MOV         @R1,A
     MOV         A,#70h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_6_up:
     MOV         A,@R1                       ; Column 6 up, update held keys
     ANL         A,#0BFh
     MOV         @R1,A
     MOV         A,#60h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_5_up:
     MOV         A,@R1                       ; Column 5 up, update held keys
     ANL         A,#0DFh
     MOV         @R1,A
     MOV         A,#50h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_4_up:
     MOV         A,@R1                       ; Column 4 up, update held keys
     ANL         A,#0EFh
     MOV         @R1,A
     MOV         A,#40h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_3_up:
     MOV         A,@R1                       ; Column 3 up, update held keys
     ANL         A,#0F7h
     MOV         @R1,A
     MOV         A,#30h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_2_up:
     MOV         A,@R1                       ; Column 2 up, update held keys
     ANL         A,#0FBh
     MOV         @R1,A
     MOV         A,#20h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_1_up:
     MOV         A,@R1                       ; Column 1 up, update held keys
     ANL         A,#0FDh
     MOV         @R1,A
     MOV         A,#10h
-    LJMP        handle_key_up
+    SJMP        handle_key_up
 
 new_key_col_0_up:
     MOV         A,@R1                       ; Column 0 up, update held keys
@@ -366,19 +366,19 @@ handle_key_up:
     JZ          normal_key_keyup
     DEC         A
     JZ          normal_key_keyup
-    LJMP        normal_key_keyup
+    SJMP        normal_key_keyup
 
 l_shift_key_keyup:
     CLR         l_shift_key_held            ; Left shift let go
-    LJMP        normal_key_keyup
+    SJMP        normal_key_keyup
 
 r_shift_key_keyup:
     CLR         r_shift_key_held            ; Right shift let go
-    LJMP        normal_key_keyup
+    SJMP        normal_key_keyup
 
 alt_key_keyup:
     CLR         alt_key_held                ; Alt let go
-    LJMP        normal_key_keyup
+    SJMP        normal_key_keyup
 
 ctrl_key_keyup:
     CLR         ctrl_key_held               ; Ctrl let go
@@ -411,49 +411,49 @@ new_keys_down:
     ORL         A,#80h
     MOV         @R1,A
     MOV         A,#70h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_6_down:
     MOV         A,@R1                       ; Column 6 down, update held keys
     ORL         A,#40h
     MOV         @R1,A
     MOV         A,#60h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_5_down:
     MOV         A,@R1                       ; Column 5 down, update held keys
     ORL         A,#20h
     MOV         @R1,A
     MOV         A,#50h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_4_down:
     MOV         A,@R1                       ; Column 4 down, update held keys
     ORL         A,#10h
     MOV         @R1,A
     MOV         A,#40h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_3_down:
     MOV         A,@R1                       ; Column 3 down, update held keys
     ORL         A,#08h
     MOV         @R1,A
     MOV         A,#30h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_2_down:
     MOV         A,@R1                       ; Column 2 down, update held keys
     ORL         A,#04h
     MOV         @R1,A
     MOV         A,#20h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_1_down:
     MOV         A,@R1                       ; Column 1 down, update held keys
     ORL         A,#02h
     MOV         @R1,A
     MOV         A,#10h
-    LJMP        handle_key_down
+    SJMP        handle_key_down
 
 new_key_col_0_down:
     MOV         A,@R1                       ; Column 0 down, update held keys
@@ -486,7 +486,7 @@ skip_update_scroll_lock:
     JB          is_scancode_set_3,keydown_process_modifier
     CJNE        A,#05h,arm_default_typematic
     CLR         typematic_enabled           ; No typematic rep. for Pause/Break
-    LJMP        keydown_process_modifier
+    SJMP        keydown_process_modifier
 arm_default_typematic:
     SETB        typematic_enabled           ; Otherwise, yes typematic repeat
 
@@ -508,29 +508,29 @@ keydown_process_modifier:
     JZ          num_lock_key_keydown
     DEC         A
     JZ          caps_lock_key_keydown
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 num_lock_key_keydown:
     JNB         xt_mode_flag,normal_key_keydown
     CPL         num_lock_flag
     CPL         NUM_LOCK_INDICATOR
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 l_shift_key_keydown:
     SETB        l_shift_key_held
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 r_shift_key_keydown:
     SETB        r_shift_key_held
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 alt_key_keydown:
     SETB        alt_key_held
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 ctrl_key_keydown:
     SETB        ctrl_key_held
-    LJMP        normal_key_keydown
+    SJMP        normal_key_keydown
 
 caps_lock_key_keydown:
     JNB         xt_mode_flag,normal_key_keydown
@@ -546,7 +546,7 @@ keydown_arm_beep:
     JNB         beep_enable_flag,done_keydown
     SETB        sound_beeper                ; Trigger beep if enabled
 done_keydown:
-    LJMP        key_row_end
+    SJMP        key_row_end
 
 ;////////////////////////////////////////
 
@@ -568,43 +568,43 @@ search_for_next_typematic_key:
     ANL         A,#7Fh                       ; Column 7 held, select
     MOV         R4,A
     MOV         A,#70h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_6_held:
     ANL         A,#0BFh                      ; Column 6 down, select
     MOV         R4,A
     MOV         A,#60h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_5_held:
     ANL         A,#0DFh                      ; Column 5 down, select
     MOV         R4,A
     MOV         A,#50h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_4_held:
     ANL         A,#0EFh                      ; Column 4 down, select
     MOV         R4,A
     MOV         A,#40h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_3_held:
     ANL         A,#0F7h                      ; Column 3 down, select
     MOV         R4,A
     MOV         A,#30h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_2_held:
     ANL         A,#0FBh                      ; Column 2 down, select
     MOV         R4,A
     MOV         A,#20h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_1_held:
     ANL         A,#0FDh                      ; Column 1 down, select
     MOV         R4,A
     MOV         A,#10h
-    LJMP        held_key_found
+    SJMP        held_key_found
 
 key_col_0_held:
     ANL         A,#0FEh                      ; Column 0 down, select
@@ -618,7 +618,7 @@ held_key_found:
     MOV         latest_held_key_index,A
     CJNE        A,keydown_key_index,not_latest_held_key
     SETB        typematic_armed_flag        ; Arm typematic if the key is found
-    LJMP        key_row_end
+    SJMP        key_row_end
 not_latest_held_key:
     MOV         A,R4                        ; Otherwise keep scanning held keys
     JNZ         search_for_next_typematic_key
@@ -651,7 +651,7 @@ reset_row_counter:
     SETB        typematic_ready_flag        ; Typematic delay almost over: Ready
     CLR         typematic_armed_flag        ; Arming is done on next scan-cycle
 typematic_skip_ready:
-    LJMP        read_keylocks
+    SJMP        read_keylocks
 
 ;////////////////////////////////////////
 
@@ -665,7 +665,7 @@ typematic_arm_check:
 
 typematic_disarm:
     CLR         typematic_armed_flag        ; Trigger will skip if not armed
-    LJMP        read_keylocks
+    SJMP        read_keylocks
 
 ;////////////////////////////////////////
 
@@ -685,7 +685,7 @@ check_for_typematic_trigger:
     JNZ         typematic_normal_key        ; If not, send scancode
     MOV         A,#80h                      ; Else, send Notis-key prefix
     MOV         size_of_unsent_msg,#00h
-    LJMP        typematic_send_scode_prefix
+    SJMP        typematic_send_scode_prefix
 
 typematic_scancode_set_12:
     MOV         size_of_unsent_msg,#00h     ; Scancode set 1/2 typematic...
@@ -697,7 +697,7 @@ typematic_scancode_set_12:
     MOV         A,#84h                      ; Typematic on Alt+PrtScr in set 2
     JNB         is_scancode_set_1,typematic_send_scancode
     MOV         A,#54h                      ; Typematic on Alt+PrtScr in set 1
-    LJMP        typematic_send_scancode
+    SJMP        typematic_send_scancode
 
 typematic_set_12_extended_no_alt:
     MOV         A,keytype_flags             ; Get flags back to check Notis
@@ -705,11 +705,12 @@ typematic_set_12_extended_no_alt:
     ANL         A,#07h
     JZ          typematic_notis_key         ; Send Notis prefix if so
     MOV         A,#0E0h
-    LJMP        typematic_send_scode_prefix ; Else send extended prefix
+    SJMP        typematic_send_scode_prefix ; Else send extended prefix
 
 typematic_notis_key:
     MOV         A,#80h
 typematic_send_scode_prefix:
+    JB          SERIAL_CLOCK_RX,typematic_normal_key
     LCALL       queue_scancode              ; Send any prefix
 typematic_normal_key:
     MOV         DPL,scancode_table_ptr_lo
@@ -717,8 +718,10 @@ typematic_normal_key:
     MOV         A,latest_held_key_index     ; Get normal scancode
     MOVC        A,@A+DPTR
 typematic_send_scancode:
+    JB          SERIAL_CLOCK_RX,typematic_end
     LCALL       queue_scancode              ; Send main scancode
 
+typematic_end:
     JNB         beep_enable_flag,typematic_skip_beep
     SETB        sound_beeper                ; Sound beeper if enabled...
 typematic_skip_beep:
@@ -996,10 +999,10 @@ check_scancode_set_range:
     DEC         A
     JZ          select_scancode_set_2
     LCALL       set_scancode_set_3          ; Set scancode set 3
-    LJMP        select_scancode_set_done
+    SJMP        select_scancode_set_done
 select_scancode_set_2:
     LCALL       set_scancode_set_2          ; Set scancode set 2
-    LJMP        select_scancode_set_done
+    SJMP        select_scancode_set_done
 select_scancode_set_1:
     MOV         prioritized_tx_byte,#0FAh   ; Ack valid data
     SETB        tx_single_byte_flag
@@ -1027,10 +1030,10 @@ get_scancode_set:
     JB          is_scancode_set_1,scancode_set_1_selected
     JB          is_scancode_set_3,scancode_set_3_selected
     MOV         prioritized_tx_byte,#02h
-    LJMP        get_scancode_set_done
+    SJMP        get_scancode_set_done
 scancode_set_1_selected:
     MOV         prioritized_tx_byte,#01h
-    LJMP        get_scancode_set_done
+    SJMP        get_scancode_set_done
 scancode_set_3_selected:
     MOV         prioritized_tx_byte,#03h
 get_scancode_set_done:
@@ -1237,19 +1240,19 @@ restore_defaults_done:
 
 op_typematic_all:
     MOV         A,#55h
-    LJMP        set_key_mode_all
+    SJMP        set_key_mode_all
 
 op_make_release_all:
     MOV         A,#0AAh
-    LJMP        set_key_mode_all
+    SJMP        set_key_mode_all
 
 op_make_only_all:
     MOV         A,#00h
-    LJMP        set_key_mode_all
+    SJMP        set_key_mode_all
 
 op_typematic_make_release_all:
     MOV         A,#0FFh
-    LJMP        set_key_mode_all
+    SJMP        set_key_mode_all
 
 ;////////////////////////////////////////
 
@@ -1310,19 +1313,19 @@ op_typematic_key:
     CLR         ET0                         ; Data will be sent, so no scanning
     CLR         release_enabled
     SETB        typematic_enabled
-    LJMP        set_key_mode_key
+    SJMP        set_key_mode_key
 
 op_typematic_make_release_key:
     CLR         ET0                         ; Data will be sent, so no scanning
     SETB        release_enabled
     CLR         typematic_enabled
-    LJMP        set_key_mode_key
+    SJMP        set_key_mode_key
 
 op_make_only_key:
     CLR         ET0                         ; Data will be sent, so no scanning
     CLR         release_enabled
     CLR         typematic_enabled
-    LJMP        set_key_mode_key
+    SJMP        set_key_mode_key
 
 ;////////////////////////////////////////
 
@@ -1349,7 +1352,7 @@ check_valid_set_3_scancode:
     SETB        change_mode_of_backspace    ; Key 66 is hardcoded to Backspace
 check_if_key_supports_mode:
     CJNE        A,#0FFh,set_key_mode        ; Set key mode if applicable index
-    LJMP        set_mode_operation_done     ; Else, end command
+    SJMP        set_mode_operation_done     ; Else, end command
 
 set_key_mode:
     MOV         B,#04h                      ; Get byte index of bitpair table
@@ -1372,7 +1375,7 @@ set_key_mode:
     MOV         ACC.1,C
     MOV         C,typematic_enabled
     MOV         ACC.0,C
-    LJMP        set_mode_byte_entry_done
+    SJMP        set_mode_byte_entry_done
 
 set_mode_byte_entry_3:
     MOV         A,@R0                       ; Third bitpair
@@ -1380,7 +1383,7 @@ set_mode_byte_entry_3:
     MOV         ACC.3,C
     MOV         C,typematic_enabled
     MOV         ACC.2,C
-    LJMP        set_mode_byte_entry_done
+    SJMP        set_mode_byte_entry_done
 
 set_mode_byte_entry_2:
     MOV         A,@R0                       ; Second bitpair
@@ -1388,7 +1391,7 @@ set_mode_byte_entry_2:
     MOV         ACC.5,C
     MOV         C,typematic_enabled
     MOV         ACC.4,C
-    LJMP        set_mode_byte_entry_done
+    SJMP        set_mode_byte_entry_done
 
 set_mode_byte_entry_1:
     MOV         A,@R0                       ; First bitpair
@@ -1405,11 +1408,10 @@ set_mode_byte_entry_done:
     POP         PSW
 
 set_mode_operation_done:
-    CLR         EA                          ; Disable scanning
     MOV         prioritized_tx_byte,#0FAh   ; Send Ack
     SETB        tx_single_byte_flag
 set_key_mode_tx_loop_2:
-    LCALL       push_tx
+    ACALL       push_tx
 set_key_mode_rx_loop_2:
     LCALL       poll_rx
     JB          tx_byte_pending,set_key_mode_tx_loop_2
@@ -1462,7 +1464,7 @@ op_reset_and_selftest:
 
     MOV         prioritized_tx_byte,#0FAh   ; Send Ack
     SETB        tx_single_byte_flag
-    LCALL       push_tx
+    ACALL       push_tx
 
 invoke_reset_wait_for_clk_low_1:            ; Wait for zero-bit handshake
     JB          SERIAL_CLOCK_RX,invoke_reset_wait_for_clk_low_1
@@ -1528,21 +1530,24 @@ tx_complete:
 ;////////////////////////////////////////
 
 tx_byte_at:
-    MOV         A,prioritized_tx_byte       ; No cooldown for response 83h
-    CJNE        A,#83h,init_tx_at           ; Wait for serial line ready
-    SJMP        start_tx_byte_at
+    JB          tx_single_byte_flag,tx_at_single_byte   ; Tx immediate-byte?
+    MOV         A,R2                        ; Anything from buffer to transmit?
+    JZ          tx_done
+    MOV         prioritized_tx_byte,@R1     ; If so, get next byte from buffer
 
 init_tx_at:
     MOV         A,t1_ticks_since_last_tx    ; Check cooldown time between bytes
     CJNE        A,#05h,tx_at_check_time
 tx_at_check_time:
     JC          tx_byte_at
+    MOV         R4,#10h                     ; Wait a bit more after cooldown
+tx_at_init_wait:
+    DJNZ        R4,tx_at_init_wait
+    SJMP        tx_at_sync_up               ; Wait for serial line ready
 
-start_tx_byte_at:
-    JB          tx_single_byte_flag,tx_at_sync_up   ; Check if immediate-byte
-    MOV         A,R2                        ; Anything from buffer to transmit?
-    JZ          tx_done
-    MOV         prioritized_tx_byte,@R1     ; If so, get next byte from buffer
+tx_at_single_byte:
+    MOV         A,prioritized_tx_byte       ; No cooldown for response 83h
+    CJNE        A,#83h,init_tx_at           ; Wait for serial line ready
 
 tx_at_sync_up:
     LCALL       read_clock_and_data_lines   ; Wait for Clock/Data lines to...
@@ -1780,14 +1785,14 @@ rx_bit_hi:
     DJNZ        temporary_counter,rx_next_bit
 
 rx_wait_for_stop_bit:
-    LCALL       toggle_clock_line           ; Get and assert stop-bit
+    ACALL       toggle_clock_line           ; Get and assert stop-bit
     JB          SERIAL_DATA_RX,rx_sync_fault
 
     SETB        SERIAL_DATA_TX              ; Send low bit to ack stop-bit
     MOV         R4,#08h
 rx_stop_bit:
     DJNZ        R4,rx_stop_bit
-    LCALL       toggle_clock_line
+    ACALL       toggle_clock_line
     CLR         SERIAL_DATA_TX              ; Restore data-line to high
 
     MOV         A,rx_byte                   ; Separate parity-bit from Rx-bits
@@ -1951,10 +1956,10 @@ encode_notis_keydown:
     JNB         is_scancode_set_3,notis_keydown_check_numcase
     MOV         A,keydown_key_index         ; Retreive key for flags again
     LCALL       get_key_mode
-    LJMP        send_notis_keydown
+    SJMP        send_notis_keydown
 notis_keydown_check_numcase:
     JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,notis_add_numcase_postfix
-    LJMP        send_notis_keydown          ; If a navigation-key is held...
+    SJMP        send_notis_keydown          ; If a navigation-key is held...
 notis_add_numcase_postfix:
     LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 send_notis_keydown:
@@ -2005,16 +2010,16 @@ normal_key_encode:
     JB          is_scancode_set_1,normal_keyup_encode
     MOV         A,#0F0h                     ; Queue break-code prefix for set 2
     LCALL       queue_scancode
-    LJMP        normal_scancode_encode
+    SJMP        normal_scancode_encode
 
 normal_keydown_check_numcase:
     JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,normal_add_numcase_postfix
-    LJMP        normal_scancode_encode      ; If a navigation-key is held...
+    SJMP        normal_scancode_encode      ; If a navigation-key is held...
 normal_add_numcase_postfix:
     LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 normal_scancode_encode:
     LCALL       get_stored_scancode         ; Queue key scancode
-    LJMP        send_normal_scancode
+    SJMP        send_normal_scancode
 
 normal_keyup_encode:
     LCALL       get_stored_scancode         ; Queue key scancode
@@ -2036,11 +2041,11 @@ extended_key_encode:
     JB          is_scancode_set_1,normal_keyup_encode
     MOV         A,#0F0h                     ; Queue break-code prefix for set 2
     LCALL       queue_scancode
-    LJMP        send_extended_key_scancode
+    SJMP        send_extended_key_scancode
 
 extended_key_keydown_check_numcase:
     JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,extended_add_numcase_postfix
-    LJMP        send_extended_key_scancode  ; If a navigation-key is held...
+    SJMP        send_extended_key_scancode  ; If a navigation-key is held...
 extended_add_numcase_postfix:
     LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
     LCALL       queue_scancode              ; Queue Extended key prefix again
@@ -2066,7 +2071,7 @@ encode_navigation_no_numlock:
     JB          proccessing_keys_up_flag,encode_navigation_keyup
     JB          l_shift_key_held,encode_navigation_keydown_l_shift
     JB          r_shift_key_held,encode_navigation_keydown_r_shift
-    LJMP        encode_navigation_no_shift
+    SJMP        encode_navigation_no_shift
 
 encode_navigation_numlock:
     LJMP        send_navigation_numlock
@@ -2084,7 +2089,7 @@ encode_navigation_no_shift:                 ; No locks/modifiers, just send key
     LCALL       queue_scancode
 send_navigation_base_no_shift:
     LCALL       get_stored_scancode         ; Queue key scancode
-    LJMP        send_navigation_no_shift
+    SJMP        send_navigation_no_shift
 send_navigation_keyup_no_shift_set_1:
     LCALL       get_stored_scancode
     ORL         A,#80h                      ; Set break-flag for scancode set 1
@@ -2097,13 +2102,13 @@ encode_navigation_keydown_l_shift:
     MOV         DPTR,#nav_keydown_l_shift_set_2
     JNB         is_scancode_set_1,send_navigation_keydown_shift
     MOV         DPTR,#nav_keydown_l_shift_set_1
-    LJMP        send_navigation_keydown_shift
+    SJMP        send_navigation_keydown_shift
 
 encode_navigation_keydown_r_shift:
     MOV         DPTR,#nav_keydown_r_shift_set_2
     JNB         is_scancode_set_1,send_navigation_keydown_shift
     MOV         DPTR,#nav_keydown_r_shift_set_1
-    LJMP        send_navigation_keydown_shift
+    SJMP        send_navigation_keydown_shift
 
 encode_navigation_keydown_both_shift:
     MOV         DPTR,#nav_keydown_both_shift_set_2
@@ -2236,7 +2241,7 @@ numpad_div_key_entry:
     JB          r_shift_key_held,encode_numpad_div_shift
     JB          proccessing_keys_up_flag,encode_numpad_div_keyup
     JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,send_numpad_div_numcase
-    LJMP        send_numpad_div_keydown     ; If a navigation-key is held...
+    SJMP        send_numpad_div_keydown     ; If a navigation-key is held...
 send_numpad_div_numcase:
     LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 send_numpad_div_keydown:
@@ -2373,15 +2378,15 @@ pause_break_key_entry:
 encode_break_keydown:
     JB          ctrl_key_held,encode_break_ctrl_keydown
     JBC         NAVIGATION_NUMCASE_IGNORE_FLAG,encode_break_keydown_check_numcase
-    LJMP        send_break_keydown          ; If a navigation-key is held...
+    SJMP        send_break_keydown          ; If a navigation-key is held...
 encode_break_keydown_check_numcase:
-    LCALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
+    ACALL       tx_numcase_modifier_up      ; ...Then queue re-enable numlock
 send_break_keydown:
     MOV         DPTR,#break_set_2
     JNB         is_scancode_set_1,send_break
     MOV         DPTR,#break_set_1
 send_break:
-    LCALL       queue_string                ; Send Break key sequence
+    ACALL       queue_string                ; Send Break key sequence
     RET
 
 break_set_2:
@@ -2394,7 +2399,7 @@ encode_break_ctrl_keydown:
     JNB         is_scancode_set_1,send_ctrl_break
     MOV         DPTR,#ctrl_break_set_1
 send_ctrl_break:
-    LCALL       queue_string                ; Send Ctrl+Break sequence
+    ACALL       queue_string                ; Send Ctrl+Break sequence
     RET
 
 ctrl_break_set_2:
@@ -2434,7 +2439,7 @@ tx_numcase_modifier_up:
     JB          is_scancode_set_1,send_numcase_set_1
     MOV         DPTR,#numcase_postfix_set_2
 send_numcase_set_1:
-    LCALL       queue_string                ; Queue re-enable numlock
+    ACALL       queue_string                ; Queue re-enable numlock
     RET
 
 numcase_postfix_set_2:
@@ -2533,7 +2538,7 @@ get_key_mode:
     JZ          second_bitpair
     DEC         A
     JZ          third_bitpair
-    LJMP        fourth_bitpair
+    SJMP        fourth_bitpair
 
 first_bitpair:
     POP         ACC                         ; Get bitpair 0
@@ -2575,7 +2580,7 @@ fourth_bitpair:
 ;//
 ;//   If the queue, the whole partial sequence which has been queued will
 ;//   be removed from the queue, and an overflow status will be added in
-;//   its place.
+;//   its place, if a pending overflow is not already is queued.
 ;//
 ;//   A     Scancode to send
 ;//   R0    Scancode queue head pointer
@@ -2587,13 +2592,16 @@ queue_scancode:
     CLR         RS0                         ; Use register bank 0
 
     JB          scancode_queue_overflowed,queue_scancode_done
+    CJNE        R2,#17,queue_check          ; Abort immediately if queue full
+queue_check:
+    JNC         queue_scancode_done
     MOV         @R0,A                       ; Add scancode to queue
     INC         R0
     INC         size_of_unsent_msg
     INC         R2
 
     CJNE        R2,#17,queue_not_full       ; Check for queue overflow
-    LJMP        unqueue_entire_msg
+    SJMP        unqueue_entire_msg
 queue_not_full:
     CJNE        R0,#scancode_tx_queue+17,queue_scancode_done
     MOV         R0,#scancode_tx_queue       ; Queue head-pointer wrap-around
@@ -2608,15 +2616,27 @@ unqueue_entire_msg:
 unqueue_not_wraparound_1:
     DEC         R2
     DJNZ        size_of_unsent_msg,unqueue_entire_msg
+
+    DEC         R0                          ; Get current top of queue
+    CJNE        R0,#scancode_tx_queue-1,unqueue_not_wraparound_2
+    MOV         R0,#scancode_tx_queue+16
+unqueue_not_wraparound_2:
+    MOV         A,@R0
+    INC         R0
+    CJNE        R0,#scancode_tx_queue+17,unqueue_not_wraparound_3
+    MOV         R0,#scancode_tx_queue
+unqueue_not_wraparound_3:
+    JZ          tx_buffer_emptied_completelty   ; Don't queue multiple overflow
     MOV         @R0,#00h                    ; 00h Overflow scancode in set 2/3
     JNB         is_scancode_set_1,send_internal_buffer_overflow
     MOV         @R0,#0FFh                   ; 0FFh Overflow scancode in set 1
 send_internal_buffer_overflow:
     INC         R0                          ; Prepare to send overflow error
-    CJNE        R0,#scancode_tx_queue+17,unqueue_not_wraparound_2
+    CJNE        R0,#scancode_tx_queue+17,unqueue_not_wraparound_4
     MOV         R0,#scancode_tx_queue       ; Queue head-pointer wrap-around
-unqueue_not_wraparound_2:
+unqueue_not_wraparound_4:
     INC         R2
+tx_buffer_emptied_completelty:
     SETB        scancode_queue_overflowed   ; Set internal overflow flag
     POP         PSW                         ; Restore register selection
     RET
@@ -2890,6 +2910,8 @@ wait_R4x2c_init:
     MOV         LEDS_AND_JUMPERS,#7Eh       ; Cut all LEDs
 
     SETB        in_init_flag                ; Send selftest status-byte to host
+wait_for_clock_cleared:
+    JB          SERIAL_CLOCK_RX,wait_for_clock_cleared
     MOV         IE,#8Ah
     SETB        TR1
     LCALL       push_tx
@@ -3028,11 +3050,17 @@ scancode_set_3_decode:
 
 copyright:
     DB          'TDV 5010 PC-KBD, 968551-01.8 '
-    DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S '
+    DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S'
 
-    DB          00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h
 
 checksum:
-    DB          0DBh
+    DB          04Ah
 
     END
