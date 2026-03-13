@@ -2970,7 +2970,7 @@ scancode_set_1_encode:
     DB          56h, 0Fh, 3Ah, 2Bh, 02h, 2Dh, 5Dh, 69h
     DB          6Ah, 53h, 48h, 50h, 00h, 4Fh, 0Eh, 2Ch
     DB          1Fh, 10h, 1Eh, 3Bh, 03h, 2Eh, 35h, 2Eh
-    DB          36h, 1Ch, 1Ch, 30h, 51h, 22h, 47h, 4Bh
+    DB          36h, 1Ch, 1Ch, 30h, 51h, 20h, 47h, 4Bh
     DB          21h, 12h, 13h, 3Dh, 05h, 30h, 58h, 41h
     DB          42h, 4Eh, 57h, 6Ah, 4Dh, 37h, 46h, 4Ch
     DB          22h, 23h, 14h, 3Eh, 06h, 32h, 68h, 43h
@@ -2988,7 +2988,7 @@ scancode_set_2_encode:
     DB          61h, 0Dh, 58h, 5Dh, 16h, 22h, 2Fh, 30h
     DB          38h, 71h, 75h, 72h, 00h, 69h, 66h, 1Ah
     DB          1Bh, 15h, 1Ch, 05h, 1Eh, 21h, 4Ah, 21h
-    DB          59h, 5Ah, 5Ah, 32h, 7Ah, 34h, 6Ch, 6Bh
+    DB          59h, 5Ah, 5Ah, 32h, 7Ah, 23h, 6Ch, 6Bh
     DB          2Bh, 24h, 2Dh, 04h, 25h, 32h, 07h, 83h
     DB          0Ah, 79h, 78h, 38h, 74h, 7Ch, 7Eh, 73h
     DB          34h, 33h, 2Ch, 0Ch, 2Eh, 3Ah, 28h, 01h
@@ -3006,7 +3006,7 @@ scancode_set_3_encode:
     DB           13h,  0Dh,  14h,  53h,  16h,  22h,  8Dh, 0A3h
     DB          0A2h,  71h,  63h,  72h,  00h,  69h,  66h,  1Ah
     DB           1Bh,  15h,  1Ch,  07h,  1Eh,  21h,  4Ah, 0B1h
-    DB           59h,  79h,  5Ah, 0B2h,  7Ah, 0B5h,  6Ch,  6Bh
+    DB           59h,  79h,  5Ah, 0B2h,  7Ah, 0B0h,  6Ch,  6Bh
     DB           2Bh,  24h,  2Dh,  17h,  25h,  32h,  5Eh,  37h
     DB           3Fh,  7Ch,  56h,  96h,  74h,  57h,  5Fh,  73h
     DB           34h,  33h,  2Ch,  1Fh,  2Eh,  3Ah,  94h,  47h
@@ -3090,11 +3090,11 @@ copyright:
 
     DB          00h
 
-    DB          'Patched by Frodevan 2023'
+    DB          'Patched by Frodevan 2026'
 
     DB          00h
 
 checksum:
-    DB          6Ah
+    DB          7Fh
 
     END

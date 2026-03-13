@@ -1,8 +1,8 @@
 
 
         Patch for Tandberg TDV-5000
-        Frodevan, 2023-01-13
-        Release 0.2
+        Frodevan, 2026-02-25
+        Release 0.3
 
 
         Tandberg TDV-5000 series keyboard firmware v2.1, patched to make the extra
@@ -36,9 +36,9 @@
         |<---                       E0 6A       E0 38       A2          WWW Back
         --->|                       E0 69       E0 30       A3          WWW Forward
 
+        JUST                        E0 20       E0 23       B0          Mute
         >> <<                       E0 2E       E0 21       B1          Vol-
         <> ><                       E0 30       E0 32       B2          Vol+
-        JUST                        E0 22       E0 34       B5          Play/Pause
 
 
         Table with new scancodes for NOTIS-keys, along with new key functions.
@@ -59,6 +59,8 @@
         -----------------------------------------------------------------------------
 
         Changelog:
+
+                r0.3: Swaps Play/Pause with Mute
 
                 r0.2: Fixing type of extended scancode patched keys. They were
                       previously adding the pre- and post-fixes used with the
