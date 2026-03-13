@@ -1,13 +1,13 @@
 ;//////////////////////////////////////////////////////////////////////
 ;//                                                                  //
-;// Tandberg TDV-5000 series 968551 v1.7                             //
+;// Tandberg TDV-5000 series 968551 v1.8 beta                        //
 ;//                                                                  //
 ;//   8051-based Firmware, running the TDV-5010 122-key keyboard     //
 ;//   from Tandber Data. This provides a MF2-type keyboard for the   //
 ;//   PS/2 interface, with support for some extra features like key- //
 ;//   click, key-locks and an AT/XT/Terminal mode toggle switch.     //
 ;//                                                                  //
-;//                                 Dissasembled by Frodevan, 2023   //
+;//                                 Dissasembled by Frodevan, 2026   //
 ;//                                                                  //
 ;//////////////////////////////////////////////////////////////////////
 
@@ -58,7 +58,7 @@ scancode_tx_buffer_head_ptr:     DS 1
 scancode_tx_buffer_tail_ptr:     DS 1
 scancode_tx_queue_length:        DS 1
 secondary_loop_counter:          DS 1
-primary_loop_counter:            DS 1
+temporary_counter:               DS 1
 previously_sent_byte:            DS 1
 size_of_unsent_msg:              DS 1
 keytype_flags:                   DS 1
@@ -92,7 +92,7 @@ stack_space:                     DS 17
 keylocks_state:                  DS 1
 keylocks_prev_state:             DS 1
 keyup_key_index:                 DS 1
-temporary_counter:               DS 1
+t1_ticks_since_last_tx:          DS 1
 typematic_count:                 DS 1
 keydown_key_index:               DS 1
 scancode_table_ptr_lo:           DS 1
@@ -182,10 +182,10 @@ CSEG AT 0000h
 ;//
 
 timer0_int:
-    LJMP        timer_routine_entry
+    SJMP        timer_routine_entry
 
     DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h, 00h, 00h, 00h
 
 ;////////////////////////////////////////
 ;//
@@ -196,6 +196,7 @@ timer0_int:
 ;//
 
 timer1_int:
+    INC         t1_ticks_since_last_tx
     JNB         sound_beeper,skip_flipping_speaker
     DJNZ        beep_duration,flip_speaker
     MOV         beep_duration,#18h
@@ -1465,9 +1466,9 @@ op_reset_and_selftest:
 
 invoke_reset_wait_for_clk_low_1:            ; Wait for zero-bit handshake
     JB          SERIAL_CLOCK_RX,invoke_reset_wait_for_clk_low_1
-    MOV         temporary_counter,#0FFh
+    MOV         R4,#0FFh
 invoke_reset_wait_a_bit:
-    DJNZ        temporary_counter,invoke_reset_wait_a_bit
+    DJNZ        R4,invoke_reset_wait_a_bit
 invoke_reset_wait_for_clk_low_2:
     JB          SERIAL_CLOCK_RX,invoke_reset_wait_for_clk_low_2
 
@@ -1497,7 +1498,7 @@ invoke_reset_do_selftest:
 
 push_tx:
     JB          xt_mode_flag,push_tx_xt     ; Determine AT or XT mode
-    LJMP        tx_byte_at
+    SJMP        tx_byte_at
 
 push_tx_xt:
     CLR         ET0                         ; Prepare for CLK-line check if XT
@@ -1527,6 +1528,17 @@ tx_complete:
 ;////////////////////////////////////////
 
 tx_byte_at:
+    MOV         A,prioritized_tx_byte       ; No cooldown for response 83h
+    CJNE        A,#83h,init_tx_at           ; Wait for serial line ready
+    SJMP        start_tx_byte_at
+
+init_tx_at:
+    MOV         A,t1_ticks_since_last_tx    ; Check cooldown time between bytes
+    CJNE        A,#05h,tx_at_check_time
+tx_at_check_time:
+    JC          tx_byte_at
+
+start_tx_byte_at:
     JB          tx_single_byte_flag,tx_at_sync_up   ; Check if immediate-byte
     MOV         A,R2                        ; Anything from buffer to transmit?
     JZ          tx_done
@@ -1542,8 +1554,11 @@ tx_at_wait_for_clock_delay:
     LCALL       read_clock_and_data_lines
     CJNE        A,B,tx_at_wait_for_clock_loop
     JZ          do_tx_at                    ; Start transmit if both lines high
-    CJNE        A,#08h,tx_at_wait_for_clock_loop    ; Retry unles only data low
+    CJNE        A,#08h,tx_at_setup_fault_retry  ; Retry unles only data low
     SJMP        tx_done
+tx_at_setup_fault_retry:
+    MOV         t1_ticks_since_last_tx,#01h ; Reset cooldown timer for retry
+    SJMP        tx_byte_at
 
 do_tx_at:
     CLR         ET0                         ; Time-critical, so no scanning now
@@ -1572,7 +1587,8 @@ tx_at_bit_0_hi:
     JB          SERIAL_CLOCK_RX,tx_at_sync_up
 tx_at_next_bit:
     LCALL       set_next_tx_bit
-    MOV         R4,#08h
+    PUSH        temporary_counter
+    MOV         R4,#07h
 tx_at_next_hi:
     DJNZ        R4,tx_at_next_hi
     SETB        SERIAL_CLOCK_TX
@@ -1583,6 +1599,7 @@ tx_at_bit_n_lo:
     MOV         R4,#04h                     ; Wait a little before next bit
 tx_at_bit_n_hi:
     DJNZ        R4,tx_at_bit_n_hi
+    POP         temporary_counter
     JB          SERIAL_CLOCK_RX,tx_at_sync_up
     DJNZ        temporary_counter,tx_at_next_bit
 
@@ -1612,7 +1629,8 @@ tx_at_last_bit_hi:
 tx_at_stop_bit_hi:
     DJNZ        R4,tx_at_stop_bit_hi
     SETB        SERIAL_CLOCK_TX
-    MOV         R4,#12h
+    MOV         t1_ticks_since_last_tx,#00h
+    MOV         R4,#11h
 tx_at_stop_bit_lo:
     DJNZ        R4,tx_at_stop_bit_lo
     CLR         SERIAL_CLOCK_TX
@@ -1657,7 +1675,8 @@ tx_xt_bit_0_lo:
     MOV         temporary_counter,#08h      ; Send 8 data bits
 tx_xt_next_bit:
     LCALL       set_next_tx_bit
-    MOV         R4,#06h
+    PUSH        temporary_counter
+    MOV         R4,#05h
 tx_xt_bit_next_lo:
     DJNZ        R4,tx_xt_bit_next_lo
     CLR         SERIAL_CLOCK_TX
@@ -1665,9 +1684,10 @@ tx_xt_bit_next_lo:
 tx_xt_bit_n_hi:
     DJNZ        R4,tx_xt_bit_n_hi
     SETB        SERIAL_CLOCK_TX
-    MOV         R4,#02h
+    MOV         R4,#01h
 tx_xt_bit_n_lo:
     DJNZ        R4,tx_xt_bit_n_lo
+    POP         temporary_counter
     DJNZ        temporary_counter,tx_xt_next_bit
 
     MOV         R4,#02h                     ; Wait a little before stop-bit
@@ -1711,7 +1731,26 @@ xt_dataline_reset:
 
 poll_rx:
     CLR         ET0                         ; Timing-critical action
-    JB          xt_mode_flag,rx_byte_tx     ; Determine AT or XT mode
+    JNB         xt_mode_flag,rx_byte_at     ; Determine AT or XT mode
+    JNB         SERIAL_CLOCK_RX,rx_end      ; No Rx for XT mode, just check...
+    LCALL       wait_ca_10ms                ; ...if clock held low
+    JNB         SERIAL_CLOCK_RX,rx_end
+    SJMP        xt_dataline_reset           ; Reset requested, reboot keyboard
+
+;////////////////////////////////////////
+
+rx_done:
+    JB          tx_byte_pending,rx_end
+    SETB        tx_and_rx_done
+rx_end:
+    JB          rx_and_tx_flag,rx_return
+    SETB        ET0
+rx_return:
+    RET
+
+;////////////////////////////////////////
+
+rx_byte_at:
     LCALL       read_clock_and_data_lines   ; Check Rx Clock and Data lines
     CJNE        A,#08h,rx_end               ; Expect Clock high and Data low
     MOV         R4,#04h                     ; Wait tiny bit
@@ -1723,7 +1762,8 @@ rx_byte_check_lines_wait:
     MOV         temporary_counter,#09h      ; Set Rx + Parity bit-counter
 rx_next_bit:
     SETB        SERIAL_CLOCK_TX             ; Clock in next bit...
-    MOV         R4,#14h
+    PUSH        temporary_counter
+    MOV         R4,#13h
 rx_bit_lo:
     DJNZ        R4,rx_bit_lo
     CLR         SERIAL_CLOCK_TX
@@ -1736,6 +1776,7 @@ rx_bit_hi:
     RRC         A
     MOV         rx_byte,A
     MOV         rx_tx_parity_bit,C          ; Temporary storage of 9th bit
+    POP         temporary_counter
     DJNZ        temporary_counter,rx_next_bit
 
 rx_wait_for_stop_bit:
@@ -1768,7 +1809,7 @@ rx_stop_bit:
     MOV         previously_sent_byte,prioritized_tx_byte
     MOV         prioritized_tx_byte,#0FEh
     SETB        tx_byte_pending
-    LJMP        rx_end
+    SJMP        rx_end
 
 rx_sync_fault:
     SETB        tx_single_byte_flag         ; Stop-bit not received, queue Nack
@@ -1779,26 +1820,6 @@ rx_sync_fault:
 rx_fault_wait:
     DJNZ        R4,rx_fault_wait
     SJMP        rx_wait_for_stop_bit
-
-;////////////////////////////////////////
-
-rx_done:
-    JB          tx_byte_pending,rx_end      ; Set flag if both Tx and Rx done
-    SETB        tx_and_rx_done
-
-rx_end:
-    JB          rx_and_tx_flag,rx_return    ; Don't re-enable clock if Rx & Tx
-    SETB        ET0
-rx_return:
-    RET
-
-;////////////////////////////////////////
-
-rx_byte_tx:
-    JNB         SERIAL_CLOCK_RX,rx_end      ; No Rx for XT mode, just check...
-    LCALL       wait_ca_10ms                ; ...if clock held low
-    JNB         SERIAL_CLOCK_RX,rx_end
-    AJMP        xt_dataline_reset           ; Reset requested, reboot keyboard
 
 
 
@@ -2743,17 +2764,17 @@ set_keyboard_mode:
     JZ          mode_3180
     DEC         A
     JZ          mode_xt
-    LJMP        mode_at
+    SJMP        mode_at
 
 mode_3180:
     ACALL       set_scancode_set_3          ; IBM 3180, normal, set 3 default
-    LJMP        setup_timers
+    SJMP        setup_timers
 
 mode_xt:
     SETB        xt_mode_flag                ; PC/XT, special mode, set 1 only
     ACALL       set_scancode_set_1
     SETB        SERIAL_DATA_TX
-    LJMP        setup_timers
+    SJMP        setup_timers
 
 mode_at:
     ACALL       set_scancode_set_2          ; PC/AT, normal, set 2 default
@@ -2825,7 +2846,7 @@ test_intram_loop:
 
     MOV         prioritized_tx_byte,#0AAh   ; Send 0AAh if all is good
     SETB        tx_single_byte_flag
-    LJMP        self_test_done
+    SJMP        self_test_done
 
 intram_bad:
     MOV         R0,DPL                      ; Still restore R0 on failure
@@ -2869,13 +2890,12 @@ wait_R4x2c_init:
     MOV         LEDS_AND_JUMPERS,#7Eh       ; Cut all LEDs
 
     SETB        in_init_flag                ; Send selftest status-byte to host
-wait_for_clock_cleared:
-    JB          SERIAL_CLOCK_RX,wait_for_clock_cleared
+    MOV         IE,#8Ah
+    SETB        TR1
     LCALL       push_tx
     CLR         in_init_flag
 
-    MOV         TCON,#50h                   ; Enable scanning
-    MOV         IE,#8Ah
+    SETB        TR0                         ; Enable scanning
     CLR         NAVIGATION_NUMCASE_IGNORE_FLAG
     LJMP        main_loop                   ; Goto main-loop
 
@@ -3007,15 +3027,12 @@ scancode_set_3_decode:
 ;//
 
 copyright:
-    DB          'TDV 5010 PC-KBD, 968551-01.7 '
+    DB          'TDV 5010 PC-KBD, 968551-01.8 '
     DB          'COPYRIGHT (C) 1988 TANDBERG DATA A/S '
 
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h
+    DB          00h, 00h, 00h
 
 checksum:
-    DB          0A9h
+    DB          0DBh
 
     END
