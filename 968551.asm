@@ -2536,10 +2536,10 @@ restore_key_mode_loop:
     ; +-- Release enabled
     ;
 default_key_modes:
-    DB          0A8h,  65h,  01h,  12h,  58h,  59h,  44h,  05h
-    DB           54h,  55h,  85h,  10h,  54h,  50h,  12h,  00h
-    DB           54h,  58h,  40h,  20h,  54h,  55h,  44h,  10h
-    DB           54h,  55h,  64h,  8Ah,  54h,  55h,  44h,  10h
+    DB          88h, 65h, 01h, 12h, 58h, 59h, 40h, 05h
+    DB          54h, 55h, 85h, 00h, 54h, 50h, 10h, 00h
+    DB          54h, 50h, 40h, 00h, 54h, 55h, 44h, 10h
+    DB          54h, 55h, 44h, 00h, 54h, 55h, 44h, 00h
 
 
 
@@ -2965,58 +2965,58 @@ wait_for_clock_cleared:
 ;//
 
 scancode_set_1_encode:
-    DB          2Ah, 11h, 12h, 01h, 29h, 38h, 39h, 4Bh
+    DB          2Ah, 7Fh, 5Bh, 01h, 29h, 38h, 39h, 4Bh
     DB          38h, 52h, 1Dh, 4Dh, 00h, 50h, 34h, 1Dh
-    DB          56h, 0Fh, 3Ah, 2Bh, 02h, 2Dh, 13h, 20h
-    DB          1Fh, 53h, 48h, 50h, 00h, 4Fh, 0Eh, 2Ch
-    DB          1Fh, 10h, 1Eh, 3Bh, 03h, 2Eh, 35h, 18h
-    DB          36h, 1Ch, 1Ch, 1Eh, 51h, 19h, 47h, 4Bh
+    DB          56h, 0Fh, 3Ah, 2Bh, 02h, 2Dh, 5Dh, 69h
+    DB          6Ah, 53h, 48h, 50h, 00h, 4Fh, 0Eh, 2Ch
+    DB          1Fh, 10h, 1Eh, 3Bh, 03h, 2Eh, 35h, 2Eh
+    DB          36h, 1Ch, 1Ch, 30h, 51h, 22h, 47h, 4Bh
     DB          21h, 12h, 13h, 3Dh, 05h, 30h, 58h, 41h
-    DB          42h, 4Eh, 57h, 17h, 4Dh, 37h, 46h, 4Ch
-    DB          22h, 23h, 14h, 3Eh, 06h, 32h, 14h, 43h
-    DB          0Eh, 39h, 44h, 21h, 49h, 16h, 00h, 48h
+    DB          42h, 4Eh, 57h, 6Ah, 4Dh, 37h, 46h, 4Ch
+    DB          22h, 23h, 14h, 3Eh, 06h, 32h, 68h, 43h
+    DB          0Eh, 39h, 44h, 64h, 49h, 69h, 00h, 48h
     DB          2Fh, 11h, 20h, 3Ch, 04h, 31h, 34h, 28h
     DB          27h, 4Ah, 2Bh, 4Fh, 37h, 53h, 51h, 35h
     DB          24h, 25h, 15h, 3Fh, 07h, 33h, 0Ah, 09h
-    DB          0Bh, 32h, 0Ch, 47h, 30h, 52h, 26h, 2Fh
+    DB          0Bh, 6Eh, 0Ch, 47h, 6Dh, 52h, 6Bh, 6Ch
     DB          18h, 16h, 17h, 40h, 08h, 26h, 1Bh, 1Ah
-    DB          19h, 25h, 0Dh, 49h, 23h, 56h, 45h, 22h
+    DB          19h, 67h, 0Dh, 49h, 66h, 08h, 45h, 65h
 
 scancode_set_2_encode:
-    DB          12h, 1Dh, 24h, 76h, 0Eh, 11h, 29h, 6Bh
+    DB          12h, 5Fh, 1Fh, 76h, 0Eh, 11h, 29h, 6Bh
     DB          11h, 70h, 14h, 74h, 00h, 72h, 34h, 14h
-    DB          61h, 0Dh, 58h, 5Dh, 16h, 22h, 2Dh, 23h
-    DB          1Bh, 71h, 75h, 72h, 00h, 69h, 66h, 1Ah
-    DB          1Bh, 15h, 1Ch, 05h, 1Eh, 21h, 4Ah, 44h
-    DB          59h, 5Ah, 5Ah, 1Ch, 7Ah, 4Dh, 6Ch, 6Bh
+    DB          61h, 0Dh, 58h, 5Dh, 16h, 22h, 2Fh, 30h
+    DB          38h, 71h, 75h, 72h, 00h, 69h, 66h, 1Ah
+    DB          1Bh, 15h, 1Ch, 05h, 1Eh, 21h, 4Ah, 21h
+    DB          59h, 5Ah, 5Ah, 32h, 7Ah, 34h, 6Ch, 6Bh
     DB          2Bh, 24h, 2Dh, 04h, 25h, 32h, 07h, 83h
-    DB          0Ah, 79h, 78h, 43h, 74h, 7Ch, 7Eh, 73h
-    DB          34h, 33h, 2Ch, 0Ch, 2Eh, 3Ah, 2Ch, 01h
-    DB          66h, 29h, 09h, 2Bh, 7Dh, 3Ch, 00h, 75h
+    DB          0Ah, 79h, 78h, 38h, 74h, 7Ch, 7Eh, 73h
+    DB          34h, 33h, 2Ch, 0Ch, 2Eh, 3Ah, 28h, 01h
+    DB          66h, 29h, 09h, 08h, 7Dh, 30h, 00h, 75h
     DB          2Ah, 1Dh, 23h, 06h, 26h, 31h, 49h, 52h
     DB          4Ch, 7Bh, 5Dh, 69h, 7Ch, 71h, 7Ah, 4Ah
     DB          3Bh, 42h, 35h, 03h, 36h, 41h, 46h, 3Eh
-    DB          45h, 3Ah, 4Eh, 6Ch, 32h, 70h, 4Bh, 2Ah
+    DB          45h, 57h, 4Eh, 6Ch, 50h, 70h, 40h, 48h
     DB          44h, 3Ch, 43h, 0Bh, 3Dh, 4Bh, 5Bh, 54h
-    DB          4Dh, 42h, 55h, 7Dh, 33h, 61h, 77h, 34h
+    DB          4Dh, 20h, 55h, 7Dh, 18h, 3Dh, 77h, 10h
 
 scancode_set_3_encode:
-    DB          12h, 1Dh, 24h, 08h, 0Eh, 19h, 29h, 61h
-    DB          39h, 70h, 58h, 6Ah, 00h, 60h, 49h, 11h
-    DB          13h, 0Dh, 14h, 53h, 16h, 22h, 2Dh, 23h
-    DB          1Bh, 71h, 63h, 72h, 00h, 69h, 66h, 1Ah
-    DB          1Bh, 15h, 1Ch, 07h, 1Eh, 21h, 4Ah, 44h
-    DB          59h, 79h, 5Ah, 1Ch, 7Ah, 4Dh, 6Ch, 6Bh
-    DB          2Bh, 24h, 2Dh, 17h, 25h, 32h, 5Eh, 37h
-    DB          3Fh, 7Ch, 56h, 43h, 74h, 57h, 5Fh, 73h
-    DB          34h, 33h, 2Ch, 1Fh, 2Eh, 3Ah, 2Ch, 47h
-    DB          66h, 29h, 4Fh, 2Bh, 7Dh, 3Ch, 62h, 75h
-    DB          2Ah, 1Dh, 23h, 0Fh, 26h, 31h, 49h, 52h
-    DB          4Ch, 84h, 53h, 65h, 7Eh, 64h, 6Dh, 77h
-    DB          3Bh, 42h, 35h, 27h, 36h, 41h, 46h, 3Eh
-    DB          45h, 3Ah, 4Eh, 6Eh, 32h, 67h, 4Bh, 2Ah
-    DB          44h, 3Ch, 43h, 2Fh, 3Dh, 4Bh, 5Bh, 54h
-    DB          4Dh, 42h, 55h, 6Fh, 33h, 13h, 76h, 34h
+    DB           12h,  9Bh,  8Bh,  08h,  0Eh,  19h,  29h,  61h
+    DB           39h,  70h,  58h,  6Ah,  00h,  60h,  49h,  11h
+    DB           13h,  0Dh,  14h,  53h,  16h,  22h,  8Dh, 0A3h
+    DB          0A2h,  71h,  63h,  72h,  00h,  69h,  66h,  1Ah
+    DB           1Bh,  15h,  1Ch,  07h,  1Eh,  21h,  4Ah, 0B1h
+    DB           59h,  79h,  5Ah, 0B2h,  7Ah, 0B5h,  6Ch,  6Bh
+    DB           2Bh,  24h,  2Dh,  17h,  25h,  32h,  5Eh,  37h
+    DB           3Fh,  7Ch,  56h,  96h,  74h,  57h,  5Fh,  73h
+    DB           34h,  33h,  2Ch,  1Fh,  2Eh,  3Ah,  94h,  47h
+    DB           66h,  29h,  4Fh,  90h,  7Dh,  95h,  62h,  75h
+    DB           2Ah,  1Dh,  23h,  0Fh,  26h,  31h,  49h,  52h
+    DB           4Ch,  84h,  53h,  65h,  7Eh,  64h,  6Dh,  77h
+    DB           3Bh,  42h,  35h,  27h,  36h,  41h,  46h,  3Eh
+    DB           45h,  9Ah,  4Eh,  6Eh,  99h,  67h,  97h,  98h
+    DB           44h,  3Ch,  43h,  2Fh,  3Dh,  4Bh,  5Bh,  54h
+    DB           4Dh,  93h,  55h,  6Fh,  92h,  9Fh,  76h,  91h
 
     ;
     ; 76543210
@@ -3041,22 +3041,22 @@ scancode_set_3_encode:
     ;
 
 keytype_flags_table:
-    DB          0C8h, 0C7h, 0C7h,  80h,  00h, 0D8h,  00h,  02h
+    DB          0C8h,  00h,  01h,  80h,  00h, 0D8h,  00h,  02h
     DB           99h,  80h, 0A1h,  02h,  06h,  02h,  87h, 0E0h
-    DB           00h,  00h, 0F0h,  87h,  00h,  00h, 0C7h,  07h
-    DB           07h,  80h,  02h,  80h,  06h,  80h,  00h,  00h
-    DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  07h
-    DB          0D0h,  81h,  00h,  07h,  80h,  07h,  80h,  80h
+    DB           00h,  00h, 0F0h,  87h,  00h,  00h,  01h,  01h
+    DB           01h,  80h,  02h,  80h,  06h,  80h,  00h,  00h
+    DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  01h
+    DB          0D0h,  81h,  00h,  01h,  80h,  01h,  80h,  80h
     DB           00h,  00h,  00h,  80h,  00h,  00h,  80h,  80h
-    DB           80h,  00h,  80h, 0C7h,  80h,  84h,  80h,  80h
-    DB           00h,  00h,  00h,  80h,  00h,  00h, 0C7h,  80h
-    DB           00h,  87h,  80h,  87h,  80h, 0C7h,  85h,  80h
+    DB           80h,  00h,  80h,  00h,  80h,  84h,  80h,  80h
+    DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  80h
+    DB           00h,  87h,  80h,  00h,  80h,  00h,  85h,  80h
     DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  00h
     DB           00h,  80h,  00h,  82h,  80h,  02h,  82h,  83h
     DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  00h
-    DB           00h, 0C7h,  00h,  82h, 0C7h, 0BAh, 0C7h, 0C7h
+    DB           00h,  00h,  00h,  82h,  00h, 0BAh,  00h,  00h
     DB           00h,  00h,  00h,  80h,  00h,  00h,  00h,  00h
-    DB           00h,  87h,  00h,  82h,  87h,  07h, 0A8h,  87h
+    DB           00h,  00h,  00h,  82h,  00h,  01h, 0A8h,  00h
 
 scancode_set_3_decode:
     DB          0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh, 0FFh,  23h
@@ -3088,12 +3088,13 @@ copyright:
     DB          '968551-02.1 '
     DB          'COPYRIGHT 1988 TANDBERG DATA A/S'
 
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-    DB          00h, 00h
+    DB          00h
+
+    DB          'Patched by Frodevan 2023'
+
+    DB          00h
 
 checksum:
-    DB          0D7h
+    DB          6Ah
 
     END
